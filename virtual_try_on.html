@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtuelles Umkleide-Tool (Ohne Server)</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    #image-preview { max-width: 100%; max-height: 400px; }
+    button { padding: 10px 20px; font-size: 16px; margin-top: 20px; }
+  </style>
+  <!-- TensorFlow.js Library einbinden -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix"></script>
+</head>
+<body>
+  <h1>Virtuelles Umkleide-Tool (Ohne Server)</h1>
+  <input type="file" id="image-upload" accept="image/*">
+  <br><br>
+  <img id="image-preview" src="" alt="Vorschau" style="display:none;">
+  <br>
+  <button id="process-image">Bild bearbeiten</button>
+
+  <script>
+    // Bildvorschau anzeigen
+    document.getElementById('image-upload').addEventListener('change', function(event) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        const imagePreview = document.getElementById('image-preview');
+        imagePreview.src = reader.result;
+        imagePreview.style.display = 'block';
+      };
+      reader.readAsDataURL(event.target.files[0]);
+    });
+
+    // Bildbearbeitung mit TensorFlow.js (z.B. Body-Pix-Modell für Kleidungserkennung)
+    document.getElementById('process-image').addEventListener('click', async function() {
+      const imageElement = document.getElementById('image-preview');
+      if (imageElement.src) {
+        // Laden des Body-Pix Modells
+        const net = await bodyPix.load();
+
+        // Das Bild für die Segmentierung vorbereiten
+        const img = document.createElement('img');
+        img.src = imageElement.src;
+
+        img.onload = async function() {
+          const segmentation = await net.segmentPersonParts(img);
+
+          // Die Segmentierung der Kleidung erkennen (alle Teile, die zum Körper gehören)
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          // Segmentierte Bilddaten verwenden (z. B. Kleidungsmaske entfernen oder bearbeiten)
+          segmentation.allPoses.forEach(pose => {
+            pose.keypoints.forEach(keypoint => {
+              if (keypoint.part === 'left_shoulder' || keypoint.part === 'right_shoulder') {
+                // Beispiel: Das Shirt-Bereich bearbeiten (dies ist eine einfache Darstellung)
+                ctx.clearRect(0, 0, img.width, img.height); // Bereich löschen oder ändern
+              }
+            });
+          });
+
+          // Das bearbeitete Bild anzeigen
+          const outputImage = canvas.toDataURL();
+          imageElement.src = outputImage;  // Zeigt das bearbeitete Bild im HTML
+        };
+      }
+    });
+  </script>
+</body>
+</html>
